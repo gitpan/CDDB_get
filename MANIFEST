@@ -5,4 +5,6 @@ cddb.pl
 Changes
 MANIFEST
 README
+DATABASE
+perl-CDDB_get-2.01.spec
 Makefile.PL

@@ -5,7 +5,7 @@ NAME
 DESCRIPTION
 
   This module/script gets the CDDB info for an audio cd. You need
-  LINUX, SUNOS or NETBSD, a cdrom drive and an active internet connection
+  LINUX, SUNOS or *BSD, a cdrom drive and an active internet connection
   in order to do that.
 
 INSTALLATION

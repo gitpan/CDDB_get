@@ -6,16 +6,15 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2000 Armin Obersteiner <armin@xos.net>
+#  (c) 2002 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
 #  This library is released under the same conditions as Perl, that
 #  is, either of the following:
 #
-#  a) the GNU General Public License as published by the Free
-#  Software Foundation; either version 1, or (at your option) any
-#  later version.
+#  a) the GNU General Public License Version 2 as published by the
+#  Free Software Foundation,
 #
 #  b) the Artistic License.
 #
@@ -27,7 +26,7 @@ use strict;
 
 use Getopt::Std;
 my %option = ();
-getopts("oghdtsfD", \%option);
+getopts("oghdtsiSfDl", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
@@ -35,7 +34,9 @@ if($option{h}) {
   print "  -o  offline mode - just stores CD info\n";
   print "  -d  output in xmcd format\n";
   print "  -s  save in xmcd format\n";
+  print "  -i  write to mysql db\n";
   print "  -t  output toc\n";
+  print "  -l  output lame command\n";
   print "  -f  http mode (e.g. through firewalls)\n";
   print "  -g  get CDDB info for stored CDs\n";
   print "  -D  put CDDB_get in debug mode\n";
@@ -72,8 +73,22 @@ $config{CDDB_MODE}="http" if($option{f});
 
 $config{input}=1;   # 1: ask user if more than one possibility
                     # 0: no user interaction
+$config{multi}=0;   # 1: do not ask user and get all of them
+                    # 0: just the first one
 
+my %db;
 
+if($option{i}) {
+  require DBI;
+
+  $db{host} = "localhost:3306";
+  $db{name} = "cddb";
+  $db{table_cds} = "cds";
+  $db{table_tracks} = "tracks";
+  $db{user} = "root";
+  $db{passwd} = "xxx";
+}
+  
 if($option{o}) {
   my $ids=get_discids($config{CD_DEVICE});
 
@@ -132,6 +147,10 @@ if($option{g}) {
 
     if($option{d} || $option{s}) {
       print_xmcd(\%cd,$option{s});
+    } elsif($option{i}) {
+      insert_db(\%cd);
+    } elsif($option{l}) {
+      print_lame(\%cd);
     } else {
       print_cd(\%cd);
     }
@@ -142,21 +161,72 @@ if($option{g}) {
 
 # get it on
 
-my %cd=get_cddb(\%config);
+unless($config{multi}) {
+  my %cd;
 
-unless(defined $cd{title}) {
-  die "no cddb entry found";
-}
+  # for those who don't like 'die' in modules ;-)
+  eval { 
+    %cd = get_cddb(\%config);
+  };
+  if ($@) {
+    print "fatal error: $!\n";
+    exit;
+  }
 
-# do somthing with the results
+  print Dumper(\%cd) if $option{D};
 
-if($option{d} || $option{s}) {
-  print_xmcd(\%cd,$option{s});
-} else {
-  print_cd(\%cd);
+  unless(defined $cd{title}) {
+    die "no cddb entry found";
+  }
+
+  # do somthing with the results
+
+  if($option{d} || $option{s}) {
+    print_xmcd(\%cd,$option{s});
+  } elsif($option{i}) {
+    insert_db(\%cd);
+  } elsif($option{l}) {
+    print_lame(\%cd);
+  } else {
+    print_cd(\%cd);
+  }
+} else { 
+  my @cd;
+
+  # for those who don't like 'die' in modules ;-)
+  eval { 
+    @cd=get_cddb(\%config);
+  };
+  if ($@) {
+    print "fatal error: $!\n";
+    exit;
+  }
+
+  print Dumper(\@cd) if $option{D};
+
+  for my $c (@cd) {
+    unless(defined $c->{title}) {
+      die "no cddb entry found";
+    }
+
+    # do somthing with the results
+
+    if($option{d} || $option{s}) {
+      print_xmcd($c,$option{s});
+    } elsif($option{i}) {
+      insert_db($c);
+    } elsif($option{l}) {
+      print_lame($c);
+      print "\n";
+    } else {
+      print_cd($c);
+      print "\n";
+    }
+  }
 }
 
 exit;
+
 
 # subroutines
 
@@ -210,4 +280,65 @@ sub print_xmcd {
     print STDERR "saved in: $xmcddir/$cd->{id}\n";
     close OUT;
   }
-}   
+}  
+
+sub insert_db {
+  my $cd=shift;
+  my $db=shift;
+
+  my ($artist, $title, $category, $cddbid, $trackno) =
+    ($cd->{artist}, $cd->{title}, $cd->{cat}, $cd->{id}, $cd->{tno});
+
+  my $sql = "SELECT cddbid FROM $db->{table_cds} WHERE CDDBID = \'$cddbid\'";
+  my $dbh = DBI->connect("dbi:mysql:$db->{name}:$db->{host}",
+    $db->{user},$db->{passwd}) or die "cannot connect to db: $DBI::errstr";
+  my $sth = $dbh->prepare($sql);
+  my $r = $sth->execute or die "cannot check for cd: $DBI::errstr";
+  if ($r == 1) {
+    print "cd already in db\n";
+    exit;
+  }
+
+  $title =~ s/'/\\'/g;
+  $artist =~ s/'/\\'/g;
+  $category =~ s/'/\\'/g;
+
+  $sql = "INSERT INTO $db->{table_cds} (cddbid, artist, title, category, tracks) VALUES (\'$cddbid\', \'$artist\', \'$title\', \'$category\' , \'$trackno\')";
+  $sth = $dbh->prepare($sql);
+  $r = $sth->execute or die "failed to insert cd: $DBI::errstr";
+
+  my $n=1;
+
+  print "Titel: $title\n";
+  print "Artist: $artist\n";
+  print "Category: $category\n\n";
+
+  for my $t ( @{$cd->{track}} ) {
+    $t =~ s/'/\\'/g;
+    print "Track $n: $t\n";
+
+    my $sql = "INSERT INTO $db->{table_tracks} (cddbid, title, trackno) VALUES (\'$cddbid\',\'$t\', \'$n\')";
+    my $sth = $dbh->prepare($sql);
+    my $r = $sth->execute or die "failed to insert track $n: $DBI::errstr";
+    $n++;
+  }
+
+  $dbh->disconnect();
+} 
+
+sub print_lame {
+  my $cd=shift;
+
+  print_cd($cd);
+  print "\n";
+
+  my $n=1;
+  for my $i ( @{$cd->{track}} ) {
+    $i =~ s/"/'/g;
+    print 'lame --ta "'.$cd->{title}.'" --tl "'.$cd->{artist}.'" --tt "'.$i.'" ';
+    printf "audio_%02d.wav ",$n;
+    $i =~ s/[^\S]|['"]/_/g;
+    print " $i.mp3\n";
+    $n++;
+  }
+}

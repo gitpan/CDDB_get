@@ -5,16 +5,15 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2000 Armin Obersteiner <armin@xos.net>
+#  (c) 2002 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
 #  This library is released under the same conditions as Perl, that
 #  is, either of the following:
 #
-#  a) the GNU General Public License as published by the Free
-#  Software Foundation; either version 1, or (at your option) any
-#  later version.
+#  a) the GNU General Public License Version 2 as published by the
+#  Free Software Foundation,
 #
 #  b) the Artistic License.
 #
@@ -34,10 +33,11 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '1.66';
+$VERSION = '2.01';
 
 use Fcntl;
 use IO::Socket;
+use Data::Dumper qw(Dumper);
 
 #$debug=1;
 
@@ -170,6 +170,12 @@ sub read_toc {
     $cdtoc{frame}=$frame;
     $cdtoc{frames}=int($frame+$sec*75+$min*60*75);
 
+    my $data = unpack("C",substr($tocentry,1,1)); 
+    $cdtoc{data} = 0;
+    if($data & 0x40) {
+      $cdtoc{data} = 1;
+    } 
+
     push @r,\%cdtoc;
   }   
   close(CD);
@@ -223,8 +229,11 @@ sub get_cddb {
   my $id;
   my $toc;
   my $total;
+  my @r;
 
-  my $input=$config->{input};
+  my $input = $config->{input};
+  my $multi = $config->{multi};
+  $input = 0 if $multi;
 
   $CDDB_HOST = $config->{CDDB_HOST} if (defined($config->{CDDB_HOST}));
   $CDDB_PORT = $config->{CDDB_PORT} if (defined($config->{CDDB_PORT}));
@@ -232,7 +241,7 @@ sub get_cddb {
   $CD_DEVICE = $config->{CD_DEVICE} if (defined($config->{CD_DEVICE}));
   $HELLO_ID  = $config->{HELLO_ID} if (defined($config->{HELLO_ID}));
   my $HTTP_PROXY = $config->{HTTP_PROXY} if (defined($config->{HTTP_PROXY}));
-
+ 
   if(defined($diskid)) {
     $id=$diskid->[0];
     $total=$diskid->[1];
@@ -292,7 +301,7 @@ sub get_cddb {
     my $port=80;
 
     if($HTTP_PROXY) {
-      if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)$/) {
+      if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
         $host=$2;
         $port=$3;
         $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
@@ -319,6 +328,8 @@ sub get_cddb {
     die "unkown mode: $CDDB_MODE for querying cddb";
   }
 
+  $return =~ s/\r//g;
+
   my ($err) = $return =~ /^(\d\d\d)\s+/;
   unless ($err =~ /^2/) {
     die "query error at cddb db: $CDDB_HOST:$CDDB_PORT";
@@ -330,135 +341,154 @@ sub get_cddb {
     while(<$socket>) {
       last if(/^\./);
       push @list,$_;
+      s/\r//g;
+      print STDERR "unexact: $_" if $debug;
     } 
   } elsif($err==200) {
+    $return =~ s/^200 //;
+    push @list,$return;
   } else {
     die "cddb: unknown: $return";
   }
 
-  if (@list) { 
-    my $index;
-    if($input==1) {
-      print "This CD could be:\n\n";
-      my $i=1;
-      for(@list) {
-        my ($tit) = $_ =~ /^\S+\s+\S+\s+(.*)/;
-        print "$i: $tit\n";
-        $i++
+  my @to_get;
+
+  unless($multi) {
+    if (@list) { 
+      my $index;
+      if($input==1) {
+        print "This CD could be:\n\n";
+        my $i=1;
+        for(@list) {
+          my ($tit) = $_ =~ /^\S+\s+\S+\s+(.*)/;
+          print "$i: $tit\n";
+          $i++
+        }
+        print "\n0: none of the above\n\nChoose: ";
+        my $n=<STDIN>;
+        $index=int($n);
+      } else {
+        $index=1;
+      } 
+
+      if ($index == 0) {
+        return undef;
+      } else {
+        push @to_get,$list[$index-1];
       }
-      print "\n0: none of the above\n\nChoose: ";
-      my $n=<STDIN>;
-      $index=int($n);
-    } else {
-      $index=1;
-    } 
-
-    if ($index == 0) {
-      return undef;
-    } else {
-      $return="200 ".$list[$index-1];
     }
-  }
-
-  #200 misc 0a01e802 Meredith Brooks / Bitch Single 
-  my ($cat,$at);
-  ($cat,$id,$at) = $return =~ /^\d\d\d\s+(\S+)\s+(\S+)\s+(.*)/;
- 
-  my $artist;
-  my $title;
-
-  if($at =~ /\//) {
-    ($artist,$title)= $at =~ /(.*?)\s*\/\s*(.*)/;
   } else {
-    $artist=$at;
-    $title=$at;
+    push @to_get,@list;
   }
 
-  my %cd=();
-  $cd{artist}=$artist;
-  chop $title;
-  $cd{title}=$title;
-  $cd{cat}=$cat;
-  $cd{id}=$id;
+  my $i=0;
+  for my $get (@to_get) {
+    #200 misc 0a01e802 Meredith Brooks / Bitch Single 
+    my ($cat,$id,$at) = $get =~ /^(\S+?)\s+(\S+?)\s+(.*)/;
 
-  my @lines;
+    my $artist;
+    my $title;
 
-  $query="cddb read $cat $id";
-
-  if ($CDDB_MODE eq "cddb") {
-    print STDERR "cddb: getting: $query\n" if $debug;
-    print $socket "$query\n";
-
-    while(<$socket>) {
-      last if(/^\./);
-      push @lines,$_;
+    if($at =~ /\//) {
+      ($artist,$title)= $at =~ /^(.*?)\s\/\s(.*)/;
+    } else {
+      $artist=$at;
+      $title=$at;
     }
-    print $socket "quit\n";
-    close $socket;
 
-  } elsif ($CDDB_MODE eq "http") {
-    close $socket;
+    my %cd=();
+    $cd{artist}=$artist;
+    chomp $title;
+    $cd{title}=$title;
+    $cd{cat}=$cat;
+    $cd{id}=$id;
 
-    my $query2=$query;
-    $query2 =~ s/ /+/g;
-    my $id=$HELLO_ID;
-    $id =~ s/ /+/g;
+    my @lines;
 
-    my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=1";
+    $query="cddb read $cat $id";
 
-    my $host=$CDDB_HOST;
-    my $port=80;
+    if ($CDDB_MODE eq "cddb") {
+      print STDERR "cddb: getting: $query\n" if $debug;
+      print $socket "$query\n";
 
-    if($HTTP_PROXY) {
-      if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)$/) {
-        $host=$2;
-        $port=$3;
-        $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
+      while(<$socket>) {
+        last if(/^\./);
+        push @lines,$_;
       }
-    }
+      if(@to_get-1 == $i) {
+        print $socket "quit\n";
+        close $socket;
+      }
 
-    print STDERR "cddb: connecting to $host:$port\n" if $debug;
+    } elsif ($CDDB_MODE eq "http") {
+      close $socket;
 
-    $socket=IO::Socket::INET->new(PeerAddr=>$host, PeerPort=>$port,
+      my $query2=$query;
+      $query2 =~ s/ /+/g;
+      my $id=$HELLO_ID;
+      $id =~ s/ /+/g;
+
+      my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=1";
+
+      my $host=$CDDB_HOST;
+      my $port=80;
+
+      if($HTTP_PROXY) {
+        if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)$/) {
+          $host=$2;
+          $port=$3;
+          $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
+        }
+      }
+
+      print STDERR "cddb: connecting to $host:$port\n" if $debug;
+
+      $socket=IO::Socket::INET->new(PeerAddr=>$host, PeerPort=>$port,
         Proto=>"tcp",Type=>SOCK_STREAM) or die "cannot connect to cddb db: $host:$port [$!]";
 
-    print STDERR "cddb: http send: GET $url\n" if $debug;
-    print $socket "GET $url\n";
+      print STDERR "cddb: http send: GET $url\n" if $debug;
+      print $socket "GET $url\n";
 
-    if($HTTP_PROXY) {
-      while(<$socket> =~ /^\S+/){};
-    }
-
-    while(<$socket>) {
-      last if(/^\./);
-      push @lines,$_;
-    }
-    close $socket;
-  } else {
-    die "unkown mode: $CDDB_MODE for querying cddb";
-  }
-
-  for(@lines) {
-    last if(/^\./);
-    next if(/^\d\d\d/);
-    push @{$cd{raw}},$_;
-    #TTITLE0=Bitch (Edit) 
-    if(/^TTITLE(\d+)\=\s*(.*)/) {
-      my $t= $2;
-      chop $t;
-      $cd{frames}[$1]=$toc->[$1]->{frames};
-      unless (defined $cd{track}[$1]) {
-        $cd{track}[$1]=$t;
-      } else {
-        $cd{track}[$1]=$cd{track}[$1].$t;
+      if($HTTP_PROXY) {
+        while(<$socket> =~ /^\S+/){};
       }
-    } 
+
+      while(<$socket>) {
+        last if(/^\./);
+        push @lines,$_;
+      }
+      close $socket;
+    } else {
+      die "unkown mode: $CDDB_MODE for querying cddb";
+    }
+
+    for(@lines) {
+      last if(/^\./);
+      next if(/^\d\d\d/);
+      push @{$cd{raw}},$_;
+      #TTITLE0=Bitch (Edit) 
+      if(/^TTITLE(\d+)\=\s*(.*)/) {
+        my $t= $2;
+        chop $t;
+        $cd{frames}[$1]=$toc->[$1]->{frames};
+        $cd{data}[$1]=$toc->[$1]->{data};
+        unless (defined $cd{track}[$1]) {
+          $cd{track}[$1]=$t;
+        } else {
+          $cd{track}[$1]=$cd{track}[$1].$t;
+        }
+      } 
+    }
+
+    $cd{tno}=$#{$cd{track}}+1;
+    $cd{frames}[$cd{tno}]=$toc->[$cd{tno}]->{frames};
+    
+    return %cd unless($multi);
+    push @r,\%cd;
+    $i++;
   }
 
-
-  $cd{tno}=$#{$cd{track}}+1;
-  $cd{frames}[$cd{tno}]=$toc->[$cd{tno}]->{frames};
-  return %cd;
+  return @r;
 }
 
 1;
@@ -512,7 +542,7 @@ CDDB - Read the CDDB entry for an audio CD in your drive
 =head1 DESCRIPTION
 
 This module/script gets the CDDB info for an audio cd. You need
-LINUX, SUNOS or NETBSD, a cdrom drive and an active internet connection 
+LINUX, SUNOS or *BSD, a cdrom drive and an active internet connection 
 in order to do that.
 
 =head1 INSTALLATION
@@ -548,7 +578,7 @@ author, who can be contacted at armin@xos.net
 
 =head1 AUTHOR & COPYRIGHT
 
-(c) 2001 Armin Obersteiner <armin(at)xos(dot)net>
+(c) 2002 Armin Obersteiner <armin(at)xos(dot)net>
 
 =head1 SEE ALSO
 
