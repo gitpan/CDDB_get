@@ -5,21 +5,20 @@ NAME
 DESCRIPTION
 
   This module/script gets the CDDB info for an audio cd. You need
-  LINUX or SUNOS, a cdrom drive and an active internet connection in 
-  order to do that.
+  LINUX, SUNOS or NETBSD, a cdrom drive and an active internet connection
+  in order to do that.
 
 INSTALLATION
 
-  Run ./configure to set it up for your OS. Then proceede as usual.
+  Run "perl Makefile.pl" as usual. ("make", "make install" next)
 
 LICENSE & DISCLAIMER
 
   This library is released under the same conditions as Perl, that
   is, either of the following:
 
-  a) the GNU General Public License as published by the Free
-  Software Foundation; either version 1, or (at your option) any
-  later version.
+  a) the GNU General Public License Version 2 as published by the 
+  Free Software Foundation,
 
   b) the Artistic License.
 
@@ -32,8 +31,9 @@ LICENSE & DISCLAIMER
   Kit, in the file named "Artistic".  If not, I'll be glad to provide one.
 
   You should also have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+  along with this program, in the file names "Copying"; if not, write to 
+  the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+  MA 02111-1307, USA.
 
   If you use this library in a commercial enterprise, you are invited,
   but not required, to pay what you feel is a reasonable fee to the
@@ -41,5 +41,10 @@ LICENSE & DISCLAIMER
 
 AUTHOR & COPYRIGHT
 
-  (c) 2000 Armin Obersteiner <armin@xos.net>
+  (c) 2001 Armin Obersteiner <armin(at)xos(dot)net>
+
+SEE ALSO
+
+  perl(1), Linux: <file:/usr/include/linux/cdrom.h>,
+  Solaris: <file:/usr/include/sys/cdio.h>.                
 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w -I.
+#!/usr/bin/perl -I.
 #
 #  CDDB - Read the CDDB entry for an audio CD in your drive
 #
@@ -20,14 +20,14 @@
 #  b) the Artistic License.
 #
 
-use CDDB_get;
+use CDDB_get qw( get_cddb get_discids );
 use Data::Dumper;
 
 use strict;
 
 use Getopt::Std;
 my %option = ();
-getopts("oghdt", \%option);
+getopts("oghdtfD", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
@@ -35,7 +35,9 @@ if($option{h}) {
   print "  -o  offline mode - just stores CD info\n";
   print "  -d  output in xmcd format\n";
   print "  -t  output toc\n";
-  print "  -g  get CCDB info for stored CDs\n";
+  print "  -f  http mode (e.g. through firewalls)\n";
+  print "  -g  get CDDB info for stored CDs\n";
+  print "  -D  put CDDB_get in debug mode\n";
   exit;
 }
 
@@ -47,16 +49,28 @@ my $toc;
 my $savedir="/tmp/cddb";
 
 # following variables just need to be declared if different from defaults
+# defaults are listed below (cdrom default is os specific)
 
-#$config{CDDB_HOST}="cddb.cddb.com";	# set cddb host
-$config{CDDB_HOST}="freedb.freedb.org";	# set cddb host
-$config{CDDB_PORT}=888;			# set cddb port
-$config{CD_DEVICE}="/dev/cdrom";	# set cd device
+# $config{CDDB_HOST}="freedb.freedb.org";	# set cddb host
+# $config{CDDB_PORT}=888; 			# set cddb port
+# $config{CDDB_MODE}="cddb";			# set cddb mode: cddb or http, this is switched with -f
+# $config{CD_DEVICE}="/dev/cdrom";		# set cd device
+
+# $config{HELLO_ID} ="root nowhere.com fastrip 0.77"; # hello string: username hostname clientname version
+
+$CDDB_get::debug=1 if($option{D});
+
+# get proxy settings for cddb mode
+
+$config{HTTP_PROXY}=$ENV{http_proxy} if $ENV{http_proxy}; # maybe wanna use a proxy ?
+
+$config{CDDB_MODE}="http" if($option{f}); 
 
 # user interaction welcome?
 
 $config{input}=1;   # 1: ask user if more than one possibility
                     # 0: no user interaction
+
 
 if($option{o}) {
   my $ids=get_discids($config{CD_DEVICE});
@@ -109,8 +123,6 @@ if($option{g}) {
 # get it on
 
 my %cd=get_cddb(\%config);
-#my %cd;
-#eval '%cd=get_cddb(\%config);';
 
 unless(defined $cd{title}) {
   die "no cddb entry found";
@@ -124,10 +136,7 @@ if($option{d}) {
   print_cd(\%cd);
 }
 
-
 exit;
-
-
 
 # subroutines
 
@@ -143,7 +152,13 @@ sub print_cd {
   my $n=1;
   foreach my $i ( @{$cd->{track}} ) {
     if($option{t}) {
-      my $out=sprintf "track %2d: %8d - %8d: $i\n",$n,$cd->{frames}[$n-1],$cd->{frames}[$n]-1;
+      my $from=$cd->{frames}[$n-1];
+      my $to=$cd->{frames}[$n]-1;
+      my $dur=$to-$from;
+      my $min=int($dur/75/60);
+      my $sec=int($dur/75)-$min*60;
+      my $frm=($dur-$sec*75-$min*75*60)*100/75;
+      my $out=sprintf "track %2d: %8d - %8d  [%2d:%.2d.%.2d]: $i\n",$n,$from,$to,$min,$sec,$frm;
       print "$out"; 
     } else {
       print "track $n: $i\n";
