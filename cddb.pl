@@ -27,12 +27,13 @@ use strict vars;
 
 use Getopt::Std;
 my %option = ();
-getopts("ogh", \%option);
+getopts("oghd", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
   print "  no argument - gets CDDB info of CD in your drive\n";
   print "  -o  offline mode - just stores CD info\n";
+  print "  -d  output in disc-cover/cdda2wav format\n";
   print "  -g  get CCDB info for stored CDs\n";
   exit;
 }
@@ -70,7 +71,7 @@ if($option{o}) {
 }
 
 if($option{g}) {
-  print "retrieving stored cds ...\n";
+  print STDERR "retrieving stored cds ...\n";
 
   opendir(DIR, $savedir) || die "cannot opendir $savedir";
   while (defined(my $file = readdir(DIR))) {
@@ -93,19 +94,11 @@ if($option{g}) {
       print "no cddb entry found: $savedir/$file\n";
     }
 
-    # do somthing with the results
-
-    print "artist: $cd{artist}\n";
-    print "title: $cd{title}\n";
-    print "category: $cd{cat}\n";
-    print "cddbid: $cd{id}\n";
-    print "trackno: $cd{tno}\n";
-
-    my $n=1;
-    foreach my $i ( @{$cd{track}} ) {
-      print "track $n: $i\n";
-      $n++;
-    }  
+    if($option{d}) {
+      print_cover(\%cd);
+    } else {
+      print_cd(\%cd);
+    }
   }
   closedir(DIR);
   exit;
@@ -121,14 +114,51 @@ unless(defined $cd{title}) {
 
 # do somthing with the results
 
-print "artist: $cd{artist}\n";
-print "title: $cd{title}\n";
-print "category: $cd{cat}\n";
-print "cddbid: $cd{id}\n";
-print "trackno: $cd{tno}\n";
-
-my $n=1;
-foreach my $i ( @{$cd{track}} ) {
-  print "track $n: $i\n";
-  $n++;
+if($option{d}) {
+  print_cover(\%cd);
+} else {
+  print_cd(\%cd);
 }
+
+
+exit;
+
+
+
+# subroutines
+
+sub print_cd {
+  my $cd=shift;
+
+  print "artist: $cd->{artist}\n";
+  print "title: $cd->{title}\n";
+  print "category: $cd->{cat}\n";
+  print "cddbid: $cd->{id}\n";
+  print "trackno: $cd->{tno}\n";
+
+  my $n=1;
+  foreach my $i ( @{$cd->{track}} ) {
+    print "track $n: $i\n";
+    $n++;
+  }  
+}
+
+sub print_cover {
+  my $cd=shift;
+
+  print "DISCID=$cd->{id}\n";
+  print "DTITLE=$cd->{artist} / $cd->{title}\n";
+
+  my $n=0;
+  foreach my $i ( @{$cd->{track}} ) {
+    print "TITLE$n=$i\n";
+    $n++;
+  }
+  print "EXTD=\n";
+  my $n=0;
+  foreach my $i ( @{$cd->{track}} ) {
+    print "EXTT$n=\n";
+    $n++;
+  }
+  print "PLAYORDER=\n";
+}   
