@@ -33,7 +33,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.11';
+$VERSION = '2.2';
 
 use Fcntl;
 use IO::Socket;
@@ -114,8 +114,8 @@ sub read_toc {
   my $device=shift;
   my $tochdr="";
 
-  sysopen (CD,$device, O_RDONLY | O_NONBLOCK) or die "cannot open cdrom [$!]";
-  ioctl(CD, $CDROMREADTOCHDR, $tochdr) or die "cannot read toc [$!]";
+  sysopen (CD,$device, O_RDONLY | O_NONBLOCK) or die "cannot open cdrom [$!] [$device]";
+  ioctl(CD, $CDROMREADTOCHDR, $tochdr) or die "cannot read toc [$!] [$device]";
   my ($start,$end);
   if($os =~ /BSD/) {
     ($start,$end)=unpack "CC",(substr $tochdr,2,2);
@@ -148,7 +148,7 @@ sub read_toc {
     } else {
       $tocentry=pack "CCCCP8l", $CDROM_MSF,0,$size_lo,$size_hi,$toc; 
     }
-    ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track info [$!]";
+    ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track info [$!] [$device]";
   }
 
   my $count=0;
@@ -156,7 +156,7 @@ sub read_toc {
     my ($min,$sec,$frame);
     unless($os =~ /BSD/) {
       $tocentry=pack "CCC", $i,0,$CDROM_MSF;
-      ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track $i info [$!]";
+      ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track $i info [$!] [$device]";
       ($min,$sec,$frame)=unpack "CCCC", substr($tocentry,4,4);
     } else {
       ($min,$sec,$frame)=unpack "CCC", substr($toc,$count+5,3);
@@ -235,12 +235,15 @@ sub get_cddb {
   my $multi = $config->{multi};
   $input = 0 if $multi;
 
+  print STDERR Dumper($config) if $debug;
+
   $CDDB_HOST = $config->{CDDB_HOST} if (defined($config->{CDDB_HOST}));
   $CDDB_PORT = $config->{CDDB_PORT} if (defined($config->{CDDB_PORT}));
   $CDDB_MODE = $config->{CDDB_MODE} if (defined($config->{CDDB_MODE}));
   $CD_DEVICE = $config->{CD_DEVICE} if (defined($config->{CD_DEVICE}));
   $HELLO_ID  = $config->{HELLO_ID} if (defined($config->{HELLO_ID}));
   my $HTTP_PROXY = $config->{HTTP_PROXY} if (defined($config->{HTTP_PROXY}));
+  my $FW=1 if (defined($config->{FW}));
  
   if(defined($diskid)) {
     $id=$diskid->[0];
@@ -321,6 +324,7 @@ sub get_cddb {
 
     print STDERR "cddb: http send: GET $url\n" if $debug;
     print $socket "GET $url\n";
+    print $socket "\n" if $FW;
 
     if($HTTP_PROXY) {
       while(<$socket> =~ /^\S+/){};
@@ -454,6 +458,7 @@ sub get_cddb {
 
       print STDERR "cddb: http send: GET $url\n" if $debug;
       print $socket "GET $url\n";
+      print $socket "\n" if $FW;
 
       if($HTTP_PROXY) {
         while(<$socket> =~ /^\S+/){};

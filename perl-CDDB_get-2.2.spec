@@ -1,5 +1,5 @@
 %define module	CDDB_get
-%define version 2.11
+%define version 2.2
 %define release 1
 Summary:	%{module} module for perl
 Name:		perl-%{module}

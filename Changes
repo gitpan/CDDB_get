@@ -61,3 +61,11 @@ Revision history for Perl extension CDDB/CDDB_get.
 2.11  10.10.2002
       small proxy regex bugfix
 
+2.12  15.04.2003
+      Added better device handling (I now have 3 cdroms)
+      (internal test release)
+
+2.2   29.04.2003
+      Added direct device handling in cddb.pl 
+      Firewall fix with additional \n
+ 

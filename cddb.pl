@@ -20,17 +20,19 @@
 #
 
 use CDDB_get qw( get_cddb get_discids );
+
 use Data::Dumper;
+use Getopt::Std;
 
 use strict;
 
-use Getopt::Std;
 my %option = ();
-getopts("oghdtsiSfDlO", \%option);
+getopts("oghdtsiSfDlOFc:", \%option); 
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
   print "  no argument - gets CDDB info of CD in your drive\n";
+  print "  -c  device (other than default device)\n";
   print "  -o  offline mode - just stores CD info\n";
   print "  -d  output in xmcd format\n";
   print "  -s  save in xmcd format\n";
@@ -39,6 +41,7 @@ if($option{h}) {
   print "  -t  output toc\n";
   print "  -l  output lame command\n";
   print "  -f  http mode (e.g. through firewalls)\n";
+  print "  -F  some stateful firewalls/http proxies need additional newlines\n";
   print "  -g  get CDDB info for stored CDs\n";
   print "  -D  put CDDB_get in debug mode\n";
   exit;
@@ -69,6 +72,12 @@ $CDDB_get::debug=1 if($option{D});
 $config{HTTP_PROXY}=$ENV{http_proxy} if $ENV{http_proxy}; # maybe wanna use a proxy ?
 
 $config{CDDB_MODE}="http" if($option{f}); 
+if($option{F}) {
+  $config{CDDB_MODE}="http";
+  $config{FW}=1;
+}
+
+$config{CD_DEVICE}=$option{c} if $option{c};
 
 # user interaction welcome?
 
