@@ -27,13 +27,14 @@ use strict vars;
 
 use Getopt::Std;
 my %option = ();
-getopts("oghd", \%option);
+getopts("oghdt", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
   print "  no argument - gets CDDB info of CD in your drive\n";
   print "  -o  offline mode - just stores CD info\n";
-  print "  -d  output in disc-cover/cdda2wav format\n";
+  print "  -d  output in xmcd format\n";
+  print "  -t  output toc\n";
   print "  -g  get CCDB info for stored CDs\n";
   exit;
 }
@@ -115,7 +116,7 @@ unless(defined $cd{title}) {
 # do somthing with the results
 
 if($option{d}) {
-  print_cover(\%cd);
+  print_xmcd(\%cd);
 } else {
   print_cd(\%cd);
 }
@@ -138,27 +139,20 @@ sub print_cd {
 
   my $n=1;
   foreach my $i ( @{$cd->{track}} ) {
-    print "track $n: $i\n";
+    if($option{t}) {
+      my $out=sprintf "track %2d: %8d - %8d: $i\n",$n,$cd->{frames}[$n-1],$cd->{frames}[$n]-1;
+      print "$out"; 
+    } else {
+      print "track $n: $i\n";
+    }
     $n++;
   }  
 }
 
-sub print_cover {
+sub print_xmcd {
   my $cd=shift;
 
-  print "DISCID=$cd->{id}\n";
-  print "DTITLE=$cd->{artist} / $cd->{title}\n";
-
-  my $n=0;
-  foreach my $i ( @{$cd->{track}} ) {
-    print "TITLE$n=$i\n";
-    $n++;
+  for(@{$cd->{raw}}) {
+    print "$_";
   }
-  print "EXTD=\n";
-  my $n=0;
-  foreach my $i ( @{$cd->{track}} ) {
-    print "EXTT$n=\n";
-    $n++;
-  }
-  print "PLAYORDER=\n";
 }   

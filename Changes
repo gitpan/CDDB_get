@@ -1,7 +1,8 @@
 Revision history for Perl extension CDDB.
 
-0.9  Sat May 13 02:57:35 2000	beta release version
-0.91 				small bug fix
-0.95				offline version
-1.00 Mon Jun 12 17:12:01 2000	output format for disc-cover
-
+0.9  Sat May 13 02:57:35 2000		beta release version
+0.91 					small bug fix
+0.95					offline version
+1.00 Mon Jun 12 17:12:01 2000		output format for disc-cover
+1.10 Sun Jul 23 22:26:54 MEST 2000	corrected output format to xmcd format
+					disc-cover can read this now, as other programs

@@ -34,7 +34,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '1.00';
+$VERSION = '1.10';
 
 use Fcntl;
 use IO::Socket;
@@ -220,6 +220,7 @@ sub get_cddb {
   #200 misc 0a01e802 Meredith Brooks / Bitch Single 
   my ($cat,$id,$at) = 
     $return =~ /^\d\d\d\s+(\S+)\s+(\S+)\s+(.*)/;
+
  
   my $artist;
   my $title;
@@ -243,10 +244,13 @@ sub get_cddb {
 
   while(<$socket>) {
     last if(/^\./);
+    next if(/^\d\d\d/);
+    push @{$cd{raw}},$_;
     #TTITLE0=Bitch (Edit) 
     if(/^TTITLE(\d+)\=\s*(.*)/) {
       my $t= $2;
       chop $t;
+      $cd{frames}[$1]=$toc->[$1]->{frames};
       unless (defined $cd{track}[$1]) {
         $cd{track}[$1]=$t;
       } else {
@@ -258,6 +262,7 @@ sub get_cddb {
   print $socket "quit\n";
 
   $cd{tno}=$#{@cd{track}}+1;
+  $cd{frames}[$cd{tno}]=$toc->[$cd{tno}]->{frames};
   return %cd;
 }
 
