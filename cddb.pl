@@ -120,13 +120,13 @@ if($option{g}) {
       die "error reading file";
     }
 
-    unless($in=~ m/^\$diskid\s+=\s+\d+;\s+         # $diskid
-                \$total\s+=\s+\d+;\s+          # $total
-                \$toc\s+=\s+\[\s+              # $toc
-                  (\{\s+
-                    ('(frame|frames|min|sec|data)'\s+=\>\s+('\d+'|\d+)(,|)\s+){5}
-                  \}(,|)\s+)+
-                \];\s+$/xs) {
+    unless($in=~ m/^\$diskid\s+=\s+('\d+'|\d+);\s+         # $diskid
+                    \$total\s+=\s+('\d+'|\d+);\s+          # $total
+                    \$toc\s+=\s+\[\s+                      # $toc
+                      (\{\s+
+                        ('(frame|frames|min|sec|data)'\s+=\>\s+('\d+'|\d+)(,|)\s+){5}
+                      \}(,|)\s+)+
+                    \];\s+$/xs) {
       print "not a save file: $savedir/$file\n";
       next;                 
     }
@@ -145,6 +145,8 @@ if($option{g}) {
     }
 
     unlink "$savedir/$file";
+
+    next unless defined $cd{title};
 
     if($option{d} || $option{s}) {
       print_xmcd(\%cd,$option{s});

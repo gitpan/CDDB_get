@@ -33,7 +33,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.10';
+$VERSION = '2.11';
 
 use Fcntl;
 use IO::Socket;
@@ -440,7 +440,7 @@ sub get_cddb {
       my $port=80;
 
       if($HTTP_PROXY) {
-        if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)$/) {
+        if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
           $host=$2;
           $port=$3;
           $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
