@@ -20,6 +20,8 @@
 
 package CDDB_get;
 
+use Config;
+
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $debug);
 
@@ -33,7 +35,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.22';
+$VERSION = '2.23';
 
 use Fcntl;
 use IO::Socket;
@@ -76,9 +78,19 @@ my $PROTO_VERSION = 5;
 my $BIG_ENDIAN = unpack("h*", pack("s", 1)) =~ /01/;
 
 if($BIG_ENDIAN) { 
-  print STDERR "[big endian]\n" if $debug;
+  print STDERR "[big endian] " if $debug;
 } else {
-  print STDERR "[little endian]\n" if $debug;
+  print STDERR "[little endian] " if $debug;
+}
+
+# 64bit pointer check
+
+my $BITS_64 = $Config{ptrsize} == 8 ? 1 : 0;
+
+if($BITS_64) {
+  print STDERR "[64 bit]\n" if $debug;
+} else {
+  print STDERR "[32 bit]\n" if $debug;
 }
 
 if($os eq "SunOS") {
@@ -104,6 +116,10 @@ if($os eq "SunOS") {
   $CDROMREADTOCHDR=0x40046304;
   $CDROMREADTOCENTRY=0xc0086305;
 
+  if($BITS_64) {
+    $CDROMREADTOCENTRY=0xc0106305;
+  }
+
   $CD_DEVICE="/dev/cd0a";
 
   if($os eq "OpenBSD") {
@@ -123,6 +139,7 @@ sub read_toc {
   } else {
     ($start,$end)=unpack "CC",$tochdr;
   }
+  print STDERR "start track: $start, end track: $end\n" if $debug;
 
   my @tracks=();
 
@@ -145,9 +162,19 @@ sub read_toc {
     my $size_lo=$size & 255;      
 
     if($BIG_ENDIAN) {
-      $tocentry=pack "CCCCP8l", $CDROM_MSF,0,$size_hi,$size_lo,$toc; 
+      if($BITS_64) {
+        # better but just perl >= 5.8.0
+        # $tocentry=pack "CCCCx![P]P", $CDROM_MSF,0,$size_hi,$size_lo,$toc; 
+        $tocentry=pack "CCCCxxxxP", $CDROM_MSF,0,$size_hi,$size_lo,$toc; 
+      } else {
+        $tocentry=pack "CCCCP8l", $CDROM_MSF,0,$size_hi,$size_lo,$toc; 
+      }
     } else {
-      $tocentry=pack "CCCCP8l", $CDROM_MSF,0,$size_lo,$size_hi,$toc; 
+      if($BITS_64) {
+        $tocentry=pack "CCCCxxxxP", $CDROM_MSF,0,$size_lo,$size_hi,$toc; 
+      } else {
+        $tocentry=pack "CCCCP8l", $CDROM_MSF,0,$size_lo,$size_hi,$toc; 
+      }
     }
     ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track info [$!] [$device]";
   }
@@ -610,8 +637,8 @@ author, who can be contacted at armin@xos.net
 
 =head1 SEE ALSO
 
-perl(1), Linux: <file:/usr/include/linux/cdrom.h>, 
-Solaris: <file:/usr/include/sys/cdio.h>.
+perl(1), Linux: F</usr/include/linux/cdrom.h>, 
+Solaris, *BSD: F</usr/include/sys/cdio.h>.
 
 =cut
 

@@ -72,3 +72,8 @@ Revision history for Perl extension CDDB/CDDB_get.
 2.22  12.08.2003
       cddb proto5: new year and genre fields
 
+2.23  07.09.2003
+      openbsd 64bit support, may (not) work on other 64bit platforms ;-)
+      (thanks to: Enache Adrian, Jolan Luff and Dan Weeks)
+      pod cleanup
+

@@ -6,6 +6,7 @@ Changes
 MANIFEST
 README
 DATABASE
-perl-CDDB_get-2.22.spec
+perl-CDDB_get-2.23.spec
 Makefile.PL
 t/use.t
+META.yml                                Module meta-data (added by MakeMaker)
