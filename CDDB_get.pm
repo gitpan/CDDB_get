@@ -21,7 +21,7 @@
 
 package CDDB_get;
 
-#use strict;
+use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 
 require Exporter;
@@ -33,7 +33,7 @@ require Exporter;
 @EXPORT = qw(
   get_cddb	
 );
-$VERSION = '0.9';
+$VERSION = '0.91';
 
 use Fcntl;
 use IO::Socket;
@@ -92,7 +92,7 @@ sub cddb_sum {
 
   while ($n > 0) {
     $ret += ($n % 10);
-    $n /= 10;
+    $n = int $n / 10;
   }
   return $ret;
 }                       

@@ -20,7 +20,7 @@
 #  b) the Artistic License.
 #
 
-use CDDB;
+use CDDB_get;
 use strict vars;
 
 my %config;
