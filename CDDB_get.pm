@@ -34,26 +34,59 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '1.10';
+$VERSION = '1.4';
 
 use Fcntl;
 use IO::Socket;
 
-# linux magic (from c headers)
+# setup for linux, solaris x86, solaris spark
+# you freebsd guys give me input 
 
+my $debug=0;
+
+print "checking for os ... " if $debug;
+
+my $os=`uname -s`;
+my $machine=`uname -m`;
+chomp $os;
+chomp $machine;
+
+print "$os ($machine)\n" if $debug;
+
+# cdrom IOCTL magic (from c headers)
+# linux x86 is default
+
+# /usr/include/linux/cdrom.h
 my $CDROMREADTOCHDR=0x5305;
-my $CDROMREADTOCENTRY=0x5306; 
+my $CDROMREADTOCENTRY=0x5306;
 my $CDROM_MSF=0x02;
 
 # default config
 
-my $CDDB_HOST = "cddb.cddb.com";
+#my $CDDB_HOST = "cddb.cddb.com";
+my $CDDB_HOST = "freedb.freedb.org";
 my $CDDB_PORT = 888;
 my $CD_DEVICE = "/dev/cdrom";
 
+if($os eq "SunOS") {
+  # /usr/include/sys/cdio.h
+
+  $CDROMREADTOCHDR=0x1179;
+  $CDROMREADTOCENTRY=0x1180;
+
+  if($machine =~ /^sun/) {  
+    # on sparc and old suns
+    $CD_DEVICE="/dev/rdsk/c0t6d0s0";
+  } else {
+    # on intel 
+    $CD_DEVICE="/dev/rdsk/c1t0d0p0";
+  }
+} 
+
+
 sub read_toc {
   my $device=shift;
-  my $tochdr;
+  my $tochdr="";
 
   sysopen (CD,$device, O_RDONLY | O_NONBLOCK) or die "cannot open cdrom";
   ioctl(CD, $CDROMREADTOCHDR, $tochdr) or die "cannot read toc";
@@ -71,7 +104,8 @@ sub read_toc {
   foreach my $i (@tracks) {
     my $tocentry=pack "CCC", $i,0,$CDROM_MSF;
     ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track $i info";
-    my ($d,$d,$d,$d,$min,$sec,$frame)=unpack "CCCCCCC", $tocentry;
+    
+    my ($min,$sec,$frame)=unpack "CCCC", substr($tocentry,4,4);
 
     my %cdtoc=();
  
@@ -218,7 +252,8 @@ sub get_cddb {
   }
 
   #200 misc 0a01e802 Meredith Brooks / Bitch Single 
-  my ($cat,$id,$at) = 
+  my ($cat,$at);
+  ($cat,$id,$at) = 
     $return =~ /^\d\d\d\s+(\S+)\s+(\S+)\s+(.*)/;
 
  
@@ -232,7 +267,7 @@ sub get_cddb {
     $title=$at;
   }
 
-  my %cd={};
+  my %cd=();
   $cd{artist}=$artist;
   chop $title;
   $cd{title}=$title;
@@ -261,7 +296,7 @@ sub get_cddb {
 
   print $socket "quit\n";
 
-  $cd{tno}=$#{@cd{track}}+1;
+  $cd{tno}=$#{$cd{track}}+1;
   $cd{frames}[$cd{tno}]=$toc->[$cd{tno}]->{frames};
   return %cd;
 }
@@ -282,9 +317,9 @@ CDDB - Read the CDDB entry for an audio CD in your drive
 
  # following variables just need to be declared if different from defaults
 
- $config{CDDB_HOST}="cddb.cddb.com";	# set cddb host
- $config{CDDB_PORT}=888;		# set cddb port
- $config{CD_DEVICE}="/dev/cdrom";	# set cd device
+ $config{CDDB_HOST}="freedb.freedb.org";	# set cddb host
+ $config{CDDB_PORT}=888;			# set cddb port
+ $config{CD_DEVICE}="/dev/cdrom";		# set cd device
 
  # user interaction welcome?
 

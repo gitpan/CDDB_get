@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I.
+#!/usr/bin/perl -w -I.
 #
 #  CDDB - Read the CDDB entry for an audio CD in your drive
 #
@@ -23,7 +23,7 @@
 use CDDB_get;
 use Data::Dumper;
 
-use strict vars;
+use strict;
 
 use Getopt::Std;
 my %option = ();
@@ -48,7 +48,8 @@ my $savedir="/tmp/cddb";
 
 # following variables just need to be declared if different from defaults
 
-$config{CDDB_HOST}="cddb.cddb.com";	# set cddb host
+#$config{CDDB_HOST}="cddb.cddb.com";	# set cddb host
+$config{CDDB_HOST}="freedb.freedb.org";	# set cddb host
 $config{CDDB_PORT}=888;			# set cddb port
 $config{CD_DEVICE}="/dev/cdrom";	# set cd device
 
@@ -96,7 +97,7 @@ if($option{g}) {
     }
 
     if($option{d}) {
-      print_cover(\%cd);
+      print_xmcd(\%cd);
     } else {
       print_cd(\%cd);
     }
@@ -108,6 +109,8 @@ if($option{g}) {
 # get it on
 
 my %cd=get_cddb(\%config);
+#my %cd;
+#eval '%cd=get_cddb(\%config);';
 
 unless(defined $cd{title}) {
   die "no cddb entry found";

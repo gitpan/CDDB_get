@@ -1,8 +1,12 @@
-Revision history for Perl extension CDDB.
+Revision history for Perl extension CDDB/CDDB_get.
 
-0.9  Sat May 13 02:57:35 2000		beta release version
+0.9	13.05.2000 02:57:35 MEST	beta release version
 0.91 					small bug fix
 0.95					offline version
-1.00 Mon Jun 12 17:12:01 2000		output format for disc-cover
-1.10 Sun Jul 23 22:26:54 MEST 2000	corrected output format to xmcd format
+1.00	12.06.2000 17:12:01 MEST	output format for disc-cover
+1.10	23.07.2000 22:26:54 MEST 	corrected output format to xmcd format
 					disc-cover can read this now, as other programs
+1.11	21.10.2000 23:40:53 MEST 	perl -w warnings resolved, thanx: Kyle <kaf@nwlink.com>
+1.2	12.11.2000 12:59:01 MET 	now solaris works too, thanx: Adam <arp@shelly.metachar.net>
+1.4  	01.12.2000 05:39:13 MET		some cleanup, default is freedb.freedb.org from now on
+
