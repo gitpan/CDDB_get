@@ -27,13 +27,14 @@ use strict;
 
 use Getopt::Std;
 my %option = ();
-getopts("oghdtfD", \%option);
+getopts("oghdtsfD", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
   print "  no argument - gets CDDB info of CD in your drive\n";
   print "  -o  offline mode - just stores CD info\n";
   print "  -d  output in xmcd format\n";
+  print "  -s  save in xmcd format\n";
   print "  -t  output toc\n";
   print "  -f  http mode (e.g. through firewalls)\n";
   print "  -g  get CDDB info for stored CDs\n";
@@ -47,6 +48,7 @@ my $diskid;
 my $total;
 my $toc;
 my $savedir="/tmp/cddb";
+my $xmcddir="/tmp/xmcd";
 
 # following variables just need to be declared if different from defaults
 # defaults are listed below (cdrom default is os specific)
@@ -83,6 +85,7 @@ if($option{o}) {
   print OUT Data::Dumper->Dump($ids,["diskid","total","toc"]);
   close OUT;
 
+  print STDERR "saved in: $savedir/$ids->[0]\_$$\n";
   exit;
 }
 
@@ -100,9 +103,24 @@ if($option{g}) {
     if($exit>0) {
       die "error reading file";
     }
-    unlink "$savedir/$file";
 
-    eval $in; 
+    unless($in=~ m/^\$diskid\s+=\s+\d+;\s+         # $diskid
+                \$total\s+=\s+\d+;\s+          # $total
+                \$toc\s+=\s+\[\s+              # $toc
+                  (\{\s+
+                    ('(frame|frames|min|sec)'\s+=\>\s+('\d+'|\d+)(,|)\s+){4}
+                  \}(,|)\s+)+
+                \];\s+$/xs) {
+      print "not a save file: $savedir/$file\n";
+      next;                 
+    }
+
+    eval $in;
+
+    if($@) {
+      print "not a save file (eval error): $savedir/$file\n";
+      next;
+    }
 
     my %cd=get_cddb(\%config,[$diskid,$total,$toc]);
 
@@ -110,8 +128,10 @@ if($option{g}) {
       print "no cddb entry found: $savedir/$file\n";
     }
 
-    if($option{d}) {
-      print_xmcd(\%cd);
+    unlink "$savedir/$file";
+
+    if($option{d} || $option{s}) {
+      print_xmcd(\%cd,$option{s});
     } else {
       print_cd(\%cd);
     }
@@ -130,8 +150,8 @@ unless(defined $cd{title}) {
 
 # do somthing with the results
 
-if($option{d}) {
-  print_xmcd(\%cd);
+if($option{d} || $option{s}) {
+  print_xmcd(\%cd,$option{s});
 } else {
   print_cd(\%cd);
 }
@@ -169,8 +189,25 @@ sub print_cd {
 
 sub print_xmcd {
   my $cd=shift;
+  my $save=shift;
+
+  *OUT=*STDOUT;
+
+  if($save) {
+    unless(-e $xmcddir) {
+      mkdir $xmcddir,0755 || die "cannot create $savedir";
+    }
+
+    open XMCD,">$xmcddir/$cd->{id}" || die "cannot open outfile";
+    *OUT=*XMCD;
+  }
 
   for(@{$cd->{raw}}) {
-    print "$_";
+    print OUT "$_";
+  }
+
+  if($save) {
+    print STDERR "saved in: $xmcddir/$cd->{id}\n";
+    close OUT;
   }
 }   

@@ -34,7 +34,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '1.61';
+$VERSION = '1.66';
 
 use Fcntl;
 use IO::Socket;
@@ -97,13 +97,17 @@ if($os eq "SunOS") {
       $CD_DEVICE="/dev/rdsk/c1t0d0p0";
     }
   }
-} elsif($os =~ /BSD/) {
+} elsif($os =~ /BSD/i) {  # works for netbsd, infos for other bsds welcome
   # /usr/include/sys/cdio.h
 
   $CDROMREADTOCHDR=0x40046304;
   $CDROMREADTOCENTRY=0xc0086305;
 
   $CD_DEVICE="/dev/cd0a";
+
+  if($os eq "OpenBSD") {
+    $CD_DEVICE="/dev/cd0c";
+  }
 }
 
 sub read_toc {
@@ -164,7 +168,7 @@ sub read_toc {
     $cdtoc{min}=$min;
     $cdtoc{sec}=$sec;
     $cdtoc{frame}=$frame;
-    $cdtoc{frames}=$frame+$sec*75+$min*60*75;
+    $cdtoc{frames}=int($frame+$sec*75+$min*60*75);
 
     push @r,\%cdtoc;
   }   
