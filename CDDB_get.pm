@@ -5,7 +5,7 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2002 Armin Obersteiner <armin@xos.net>
+#  (c) 2003 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
@@ -33,7 +33,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.2';
+$VERSION = '2.22';
 
 use Fcntl;
 use IO::Socket;
@@ -69,6 +69,7 @@ my $CDDB_MODE = "cddb";
 my $CD_DEVICE = "/dev/cdrom";
 
 my $HELLO_ID  = "root nowhere.com fastrip 0.77";
+my $PROTO_VERSION = 5;
 
 # endian check
 
@@ -242,6 +243,7 @@ sub get_cddb {
   $CDDB_MODE = $config->{CDDB_MODE} if (defined($config->{CDDB_MODE}));
   $CD_DEVICE = $config->{CD_DEVICE} if (defined($config->{CD_DEVICE}));
   $HELLO_ID  = $config->{HELLO_ID} if (defined($config->{HELLO_ID}));
+  $PROTO_VERSION  = $config->{PROTO_VERSION} if (defined($config->{PROTO_VERSION}));
   my $HTTP_PROXY = $config->{HTTP_PROXY} if (defined($config->{HTTP_PROXY}));
   my $FW=1 if (defined($config->{FW}));
  
@@ -287,8 +289,17 @@ sub get_cddb {
     print $socket "cddb hello $HELLO_ID\n";
 
     $return=<$socket>;
+    print STDERR "hello return: $return" if $debug;
     unless ($return =~ /^2\d\d\s+/) {
       die "handshake error at cddb db: $CDDB_HOST:$CDDB_PORT";
+    }
+
+    print $socket "proto $PROTO_VERSION\n";
+
+    $return=<$socket>;
+    print STDERR "proto return: $return" if $debug;
+    unless ($return =~ /^2\d\d\s+/) {
+      die "protokoll mismatch error at cddb db: $CDDB_HOST:$CDDB_PORT";
     }
  
     print STDERR "cddb: sending: $query\n" if $debug;
@@ -304,7 +315,7 @@ sub get_cddb {
     my $id=$HELLO_ID;
     $id =~ s/ /+/g;
 
-    my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=1";
+    my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=$PROTO_VERSION";
 
     my $host=$CDDB_HOST;
     my $port=80;
@@ -438,7 +449,7 @@ sub get_cddb {
       my $id=$HELLO_ID;
       $id =~ s/ /+/g;
 
-      my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=1";
+      my $url = "/~cddb/cddb.cgi?cmd=$query2&hello=$id&proto=$PROTO_VERSION";
 
       my $host=$CDDB_HOST;
       my $port=80;
@@ -488,7 +499,13 @@ sub get_cddb {
         } else {
           $cd{track}[$1]=$cd{track}[$1].$t;
         }
-      } 
+      } elsif(/^DYEAR=\s*(\d+)/) {
+        $cd{'year'} = $1;
+      } elsif(/^DGENRE=\s*(\S+.*)/) {
+        my $t = $1;
+        chop $t;
+        $cd{'genre'} = $t;
+      }
     }
 
     $cd{tno}=$#{$cd{track}}+1;
@@ -589,7 +606,7 @@ author, who can be contacted at armin@xos.net
 
 =head1 AUTHOR & COPYRIGHT
 
-(c) 2002 Armin Obersteiner <armin(at)xos(dot)net>
+(c) 2003 Armin Obersteiner <armin(at)xos(dot)net>
 
 =head1 SEE ALSO
 

@@ -6,7 +6,7 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2002 Armin Obersteiner <armin@xos.net>
+#  (c) 2003 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
@@ -64,6 +64,7 @@ my $xmcddir="/tmp/xmcd";
 # $config{CD_DEVICE}="/dev/cdrom";		# set cd device
 
 # $config{HELLO_ID} ="root nowhere.com fastrip 0.77"; # hello string: username hostname clientname version
+# $config{PROTO_VERSION} = 5; # cddb protokol version
 
 $CDDB_get::debug=1 if($option{D});
 
@@ -248,6 +249,8 @@ sub print_cd {
   print "artist: $cd->{artist}\n";
   print "title: $cd->{title}\n";
   print "category: $cd->{cat}\n";
+  print "genre: $cd->{genre}\n" if($cd->{genre});
+  print "year: $cd->{year}\n" if($cd->{year});
   print "cddbid: $cd->{id}\n";
   print "trackno: $cd->{tno}\n";
 

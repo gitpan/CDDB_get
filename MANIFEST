@@ -6,5 +6,6 @@ Changes
 MANIFEST
 README
 DATABASE
-perl-CDDB_get-2.2.spec
+perl-CDDB_get-2.22.spec
 Makefile.PL
+t/use.t

@@ -68,4 +68,7 @@ Revision history for Perl extension CDDB/CDDB_get.
 2.2   29.04.2003
       Added direct device handling in cddb.pl 
       Firewall fix with additional \n
- 
+
+2.22  12.08.2003
+      cddb proto5: new year and genre fields
+
