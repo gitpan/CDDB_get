@@ -26,7 +26,7 @@ use strict;
 
 use Getopt::Std;
 my %option = ();
-getopts("oghdtsiSfDl", \%option);
+getopts("oghdtsiSfDlO", \%option);
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
@@ -35,6 +35,7 @@ if($option{h}) {
   print "  -d  output in xmcd format\n";
   print "  -s  save in xmcd format\n";
   print "  -i  write to mysql db\n";
+  print "  -O  overwrite file or db\n";
   print "  -t  output toc\n";
   print "  -l  output lame command\n";
   print "  -f  http mode (e.g. through firewalls)\n";
@@ -82,7 +83,7 @@ if($option{i}) {
   require DBI;
 
   $db{host} = "localhost:3306";
-  $db{name} = "cddb";
+  $db{name} = "mp3-test";
   $db{table_cds} = "cds";
   $db{table_tracks} = "tracks";
   $db{user} = "root";
@@ -123,7 +124,7 @@ if($option{g}) {
                 \$total\s+=\s+\d+;\s+          # $total
                 \$toc\s+=\s+\[\s+              # $toc
                   (\{\s+
-                    ('(frame|frames|min|sec)'\s+=\>\s+('\d+'|\d+)(,|)\s+){4}
+                    ('(frame|frames|min|sec|data)'\s+=\>\s+('\d+'|\d+)(,|)\s+){5}
                   \}(,|)\s+)+
                 \];\s+$/xs) {
       print "not a save file: $savedir/$file\n";
@@ -148,7 +149,7 @@ if($option{g}) {
     if($option{d} || $option{s}) {
       print_xmcd(\%cd,$option{s});
     } elsif($option{i}) {
-      insert_db(\%cd);
+      insert_db(\%cd,\%db);
     } elsif($option{l}) {
       print_lame(\%cd);
     } else {
@@ -184,7 +185,7 @@ unless($config{multi}) {
   if($option{d} || $option{s}) {
     print_xmcd(\%cd,$option{s});
   } elsif($option{i}) {
-    insert_db(\%cd);
+    insert_db(\%cd,\%db);
   } elsif($option{l}) {
     print_lame(\%cd);
   } else {
@@ -214,7 +215,7 @@ unless($config{multi}) {
     if($option{d} || $option{s}) {
       print_xmcd($c,$option{s});
     } elsif($option{i}) {
-      insert_db($c);
+      insert_db($c,\%db);
     } elsif($option{l}) {
       print_lame($c);
       print "\n";
@@ -268,6 +269,13 @@ sub print_xmcd {
       mkdir $xmcddir,0755 || die "cannot create $savedir";
     }
 
+    unless($option{O}) {
+      if(-e "$xmcddir/$cd->{id}") {
+        print "XMCD file exists\n";
+        exit;
+      }
+    }
+
     open XMCD,">$xmcddir/$cd->{id}" || die "cannot open outfile";
     *OUT=*XMCD;
   }
@@ -296,7 +304,16 @@ sub insert_db {
   my $r = $sth->execute or die "cannot check for cd: $DBI::errstr";
   if ($r == 1) {
     print "cd already in db\n";
-    exit;
+    if($option{O}) {
+      my $sql = "DELETE FROM $db->{table_cds} WHERE CDDBID = \'$cddbid\'";
+      my $sth = $dbh->prepare($sql);
+      my $r = $sth->execute or die "cannot delete from $db->{table_cds}: $DBI::errstr";
+      $sql = "DELETE FROM $db->{table_tracks} WHERE CDDBID = \'$cddbid\'";
+      $sth = $dbh->prepare($sql);
+      $r = $sth->execute or die "cannot delete from $db->{table_tracks}: $DBI::errstr";
+    } else {
+      exit;
+    }
   }
 
   $title =~ s/'/\\'/g;
@@ -309,15 +326,23 @@ sub insert_db {
 
   my $n=1;
 
-  print "Titel: $title\n";
-  print "Artist: $artist\n";
-  print "Category: $category\n\n";
+  print "titel: $title\n";
+  print "artist: $artist\n";
+  print "category: $category\n\n";
 
   for my $t ( @{$cd->{track}} ) {
     $t =~ s/'/\\'/g;
-    print "Track $n: $t\n";
+    my $dur=($cd->{frames}[$n]-1-$cd->{frames}[$n-1])/75;
+    my $hour=int($dur/3600);
+    my $min=int($dur/60-$hour*60);
+    my $sec=$dur-$hour*3600-$min*60;
+    my $fr=substr(sprintf("%5.2f",$sec-int($sec)),2,3);
+    my $time=sprintf "%.2d:%.2d:%.2d%s",$hour,$min,int($sec),$fr;
 
-    my $sql = "INSERT INTO $db->{table_tracks} (cddbid, title, trackno) VALUES (\'$cddbid\',\'$t\', \'$n\')";
+    print "track $n: $t  [$time]\n";
+    
+    my $sql = "INSERT INTO $db->{table_tracks} (cddbid, title, trackno, time) 
+               VALUES (\'$cddbid\',\'$t\', \'$n\', \'$time\')";
     my $sth = $dbh->prepare($sql);
     my $r = $sth->execute or die "failed to insert track $n: $DBI::errstr";
     $n++;

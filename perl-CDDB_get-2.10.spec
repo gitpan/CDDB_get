@@ -1,5 +1,5 @@
 %define module	CDDB_get
-%define version 2.01
+%define version 2.10
 %define release 1
 Summary:	%{module} module for perl
 Name:		perl-%{module}
@@ -42,7 +42,7 @@ s=/usr/share/spec-helper/spec-helper ; [ -x $s ] && $s
 %{_prefix}/lib/perl5/site_perl/*/auto/CDDB_get/*
 %{_prefix}/lib/perl5/site_perl/*/cddb.pl
 %{_prefix}/lib/perl5/site_perl/*/CDDB_get.pm
-%doc Changes Copying README
+%doc Changes Copying README DATABASE
 
 %changelog
 * Mon Mar 11 04:14:26 MET 2002 Armin Obersteiner <armin(at)xos(dot)net> 2.01-1

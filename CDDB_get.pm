@@ -33,7 +33,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.01';
+$VERSION = '2.10';
 
 use Fcntl;
 use IO::Socket;
@@ -262,7 +262,13 @@ sub get_cddb {
   for (my $i=0; $i<$total ;$i++) {
       $query.=" $toc->[$i]->{frames}";
   }
-  $query.=" ". int(($toc->[$total]->{frames}-$toc->[0]->{frames})/75);
+
+  # this was to old total calculation, does not work too well, its included if new version makes problems
+  # $query.=" ". int(($toc->[$total]->{frames}-$toc->[0]->{frames})/75);
+
+  $query.=" ". int(($toc->[$total]->{frames})/75);
+
+  print Dumper($toc) if $debug;
 
   if ($CDDB_MODE eq "cddb") {
     print STDERR "cddb: connecting to $CDDB_HOST:$CDDB_PORT\n" if $debug;

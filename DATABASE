@@ -13,6 +13,6 @@ CREATE TABLE tracks (
   cddbid varchar(20) NOT NULL default '',
   title varchar(250) NOT NULL default '',
   trackno tinyint(2) NOT NULL default '0',
-  time datetime NOT NULL default '0000-00-00 00:00:00'
+  time time NOT NULL default '00:00:00'
 );
 
