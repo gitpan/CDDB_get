@@ -31,9 +31,10 @@ require Exporter;
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw(
-  get_cddb	
+  get_cddb
+  get_discids
 );
-$VERSION = '0.91';
+$VERSION = '0.95';
 
 use Fcntl;
 use IO::Socket;
@@ -114,19 +115,41 @@ sub cddb_discid {
   return (($n % 0xff) << 24 | $t << 8 | $total);
 }                                       
 
+sub get_discids {
+  my $cd=shift;
+  $CD_DEVICE = $cd if (defined($cd));
+
+  my @toc=read_toc($CD_DEVICE);
+  my $total=$#toc;
+
+  my $id=cddb_discid($total,\@toc);
+
+  return [$id,$total,\@toc];
+}
 
 sub get_cddb {
   my $config=shift;
+  my $diskid=shift;
+  my $id;
+  my $toc;
+  my $total;
+
   my $input=$config->{input};
 
   $CDDB_HOST = $config->{CDDB_HOST} if (defined($config->{CDDB_HOST}));
   $CDDB_PORT = $config->{CDDB_PORT} if (defined($config->{CDDB_PORT}));
   $CD_DEVICE = $config->{CD_DEVICE} if (defined($config->{CD_DEVICE}));
 
-  my @toc=read_toc($CD_DEVICE);
-  my $total=$#toc;
-
-  my $id=cddb_discid($total,\@toc);
+  if(defined($diskid)) {
+    $id=$diskid->[0];
+    $total=$diskid->[1];
+    $toc=$diskid->[2];
+  } else {
+    my $diskid=get_discids($CD_DEVICE);
+    $id=$diskid->[0];
+    $total=$diskid->[1];
+    $toc=$diskid->[2];
+  }
 
   my $socket=IO::Socket::INET->new(PeerAddr=>$CDDB_HOST, PeerPort=>$CDDB_PORT,
       Proto=>"tcp",Type=>SOCK_STREAM) or die "cannot connect to cddb db: $CDDB_HOST:$CDDB_PORT";
@@ -146,9 +169,9 @@ sub get_cddb {
   print $socket "cddb query $id2 $total";
 
   for (my $i=0; $i<$total ;$i++) {
-    print $socket " $toc[$i]->{frames}";
+    print $socket " $toc->[$i]->{frames}";
   }
-  print $socket " ". int(($toc[$total]->{frames}-$toc[0]->{frames})/75) ."\n";
+  print $socket " ". int(($toc->[$total]->{frames}-$toc->[0]->{frames})/75) ."\n";
 
   $return=<$socket>;
   my ($err) = $return =~ /^(\d\d\d)\s+/;
