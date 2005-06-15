@@ -6,7 +6,7 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2003 Armin Obersteiner <armin@xos.net>
+#  (c) 2004 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
@@ -19,7 +19,7 @@
 #  b) the Artistic License.
 #
 
-use CDDB_get qw( get_cddb get_discids );
+#use CDDB_get qw( get_cddb get_discids );
 
 use Data::Dumper;
 use Getopt::Std;
@@ -27,7 +27,7 @@ use Getopt::Std;
 use strict;
 
 my %option = ();
-getopts("oghdtsiSfDlOFc:", \%option); 
+getopts("oghdtsiSfDlOFc:H:CIRGP", \%option); 
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
@@ -43,6 +43,12 @@ if($option{h}) {
   print "  -f  http mode (e.g. through firewalls)\n";
   print "  -F  some stateful firewalls/http proxies need additional newlines\n";
   print "  -g  get CDDB info for stored CDs\n";
+  print "  -I  non interactive mode\n";
+  print "  -H  CDDB hostname\n";
+  print "  -C  use local cache\n";
+  print "  -R  readonly cache\n";
+  print "  -G  cache has not the diskid as filenames (much slower)\n";
+  print "  -P  cache path (default: /tmp/xmcd)\n";
   print "  -D  put CDDB_get in debug mode\n";
   exit;
 }
@@ -55,10 +61,34 @@ my $toc;
 my $savedir="/tmp/cddb";
 my $xmcddir="/tmp/xmcd";
 
+if($option{C}) {
+  # use CDDB_cache qw( get_cddb get_discids );
+  require CDDB_cache;
+  CDDB_cache->import( qw( get_cddb get_discids ) );
+
+  $CDDB_cache::debug=1 if($option{D});
+  $CDDB_cache::readonly=1 if($option{R});
+  $CDDB_cache::grep=1 if($option{G});
+
+  $CDDB_cache::dir="/tmp/xmcd"; # default
+  # $CDDB_cache::dir="/opt/kde2/share/apps/kscd/cddb";
+  $CDDB_cache::dir=$option{P} if($option{P});
+
+} else {
+  # use CDDB_get qw( get_cddb get_discids );
+  require CDDB_get;
+  CDDB_get->import( qw( get_cddb get_discids ) );
+}
+
+$CDDB_get::debug=1 if($option{D});
+
 # following variables just need to be declared if different from defaults
 # defaults are listed below (cdrom default is os specific)
 
 # $config{CDDB_HOST}="freedb.freedb.org";	# set cddb host
+if($option{H}) {
+  $config{CDDB_HOST}=$option{H};
+}
 # $config{CDDB_PORT}=888; 			# set cddb port
 # $config{CDDB_MODE}="cddb";			# set cddb mode: cddb or http, this is switched with -f
 # $config{CD_DEVICE}="/dev/cdrom";		# set cd device
@@ -66,7 +96,6 @@ my $xmcddir="/tmp/xmcd";
 # $config{HELLO_ID} ="root nowhere.com fastrip 0.77"; # hello string: username hostname clientname version
 # $config{PROTO_VERSION} = 5; # cddb protokol version
 
-$CDDB_get::debug=1 if($option{D});
 
 # get proxy settings for cddb mode
 
@@ -87,6 +116,8 @@ $config{input}=1;   # 1: ask user if more than one possibility
 $config{multi}=0;   # 1: do not ask user and get all of them
                     # 0: just the first one
 
+$config{input}=0 if($option{I});
+
 my %db;
 
 if($option{i}) {
@@ -104,10 +135,10 @@ if($option{o}) {
   my $ids=get_discids($config{CD_DEVICE});
 
   unless(-e $savedir) {
-    mkdir $savedir,0755 || die "cannot create $savedir";
+    mkdir $savedir,0755 or die "cannot create $savedir";
   }
 
-  open OUT,">$savedir/$ids->[0]\_$$" || die "cannot open outfile";
+  open OUT,">$savedir/$ids->[0]\_$$" or die "cannot open outfile";
   print OUT Data::Dumper->Dump($ids,["diskid","total","toc"]);
   close OUT;
 
@@ -118,7 +149,7 @@ if($option{o}) {
 if($option{g}) {
   print STDERR "retrieving stored cds ...\n";
 
-  opendir(DIR, $savedir) || die "cannot opendir $savedir";
+  opendir(DIR, $savedir) or die "cannot opendir $savedir";
   while (defined(my $file = readdir(DIR))) {
     next if($file =~ /^\./);
     print "\n";
@@ -280,7 +311,7 @@ sub print_xmcd {
 
   if($save) {
     unless(-e $xmcddir) {
-      mkdir $xmcddir,0755 || die "cannot create $savedir";
+      mkdir $xmcddir,0755 or die "cannot create $savedir";
     }
 
     unless($option{O}) {
@@ -290,7 +321,7 @@ sub print_xmcd {
       }
     }
 
-    open XMCD,">$xmcddir/$cd->{id}" || die "cannot open outfile";
+    open XMCD,">$xmcddir/$cd->{id}" or die "cannot open outfile";
     *OUT=*XMCD;
   }
 
@@ -374,9 +405,10 @@ sub print_lame {
   my $n=1;
   for my $i ( @{$cd->{track}} ) {
     $i =~ s/"/'/g;
-    print 'lame --ta "'.$cd->{title}.'" --tl "'.$cd->{artist}.'" --tt "'.$i.'" ';
+    print 'lame --tl "'.$cd->{title}.'" --ta "'.$cd->{artist}.'" --tt "'.$i.'" ';
     printf "audio_%02d.wav ",$n;
-    $i =~ s/[^\S]|['"]/_/g;
+    $i =~ s/[^\S]|['"\/]/_/g;
+    $i =~ s/_+-_+/-/g;
     print " $i.mp3\n";
     $n++;
   }

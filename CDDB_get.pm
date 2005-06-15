@@ -5,7 +5,7 @@
 #  LINUX, a cdrom drive and an active internet connection in order
 #  to do that.
 #
-#  (c) 2003 Armin Obersteiner <armin@xos.net>
+#  (c) 2004 Armin Obersteiner <armin@xos.net>
 #
 #  LICENSE
 #
@@ -35,7 +35,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.23';
+$VERSION = '2.25';
 
 use Fcntl;
 use IO::Socket;
@@ -347,12 +347,19 @@ sub get_cddb {
     my $host=$CDDB_HOST;
     my $port=80;
 
+    my ($user,$pass);
+
     if($HTTP_PROXY) {
-      if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
+      if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(.+)\@(.+?):(.+)/) {
+        $user=$2;
+        $pass=$3;
+        $host=$4;
+        $port=$5;
+      } elsif($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
         $host=$2;
         $port=$3;
-        $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
       }
+      $url="http://$CDDB_HOST".$url." HTTP/1.0";
     }
 
     print STDERR "cddb: connecting to $host:$port\n" if $debug;
@@ -362,6 +369,13 @@ sub get_cddb {
 
     print STDERR "cddb: http send: GET $url\n" if $debug;
     print $socket "GET $url\n";
+
+    if($user) {
+      my $cred = encode_base64("$user:$pass");
+      print $socket "Proxy-Authorization: Basic $cred\n";
+    }
+
+    print $socket "\n";
     print $socket "\n" if $FW;
 
     if($HTTP_PROXY) {
@@ -447,6 +461,7 @@ sub get_cddb {
     my %cd=();
     $cd{artist}=$artist;
     chomp $title;
+    $title =~ s/\r//g;
     $cd{title}=$title;
     $cd{cat}=$cat;
     $cd{id}=$id;
@@ -481,12 +496,19 @@ sub get_cddb {
       my $host=$CDDB_HOST;
       my $port=80;
 
+      my ($user,$pass);
+
       if($HTTP_PROXY) {
-        if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
+        if($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(.+)\@(.+?):(.+)/) {
+          $user=$2;
+          $pass=$3;
+          $host=$4;
+          $port=$5;
+        } elsif($HTTP_PROXY =~ /^(http:\/\/|)(.+?):(\d+)/) {
           $host=$2;
           $port=$3;
-          $url="http://$CDDB_HOST".$url." HTTP/1.0\n";
         }
+        $url="http://$CDDB_HOST".$url." HTTP/1.0";
       }
 
       print STDERR "cddb: connecting to $host:$port\n" if $debug;
@@ -496,6 +518,13 @@ sub get_cddb {
 
       print STDERR "cddb: http send: GET $url\n" if $debug;
       print $socket "GET $url\n";
+
+      if($user) {
+        my $cred = encode_base64("$user:$pass");
+        print $socket "Proxy-Authorization: Basic $cred\n";
+      }
+
+      print $socket "\n";
       print $socket "\n" if $FW;
 
       if($HTTP_PROXY) {
@@ -510,6 +539,19 @@ sub get_cddb {
     } else {
       die "unkown mode: $CDDB_MODE for querying cddb";
     }
+
+    # xmcd
+    #
+    # Track frame offsets:
+    #	150
+    # ...
+    #	210627
+    #
+    # Disc length: 2952 seconds
+    #
+    # Revision: 1
+    # Submitted via: xmcd 2.0
+    #
 
     for(@lines) {
       last if(/^\./);
@@ -532,6 +574,8 @@ sub get_cddb {
         my $t = $1;
         chop $t;
         $cd{'genre'} = $t;
+      } elsif(/^\#\s+Revision:\s+(\d+)/) {
+        $cd{'revision'} = $1;
       }
     }
 

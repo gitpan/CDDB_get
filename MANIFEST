@@ -1,12 +1,13 @@
 Artistic
 Copying
 CDDB_get.pm
+CDDB_cache.pm
 cddb.pl
 Changes
 MANIFEST
 README
 DATABASE
-perl-CDDB_get-2.23.spec
+perl-CDDB_get-2.25.spec
 Makefile.PL
 t/use.t
 META.yml                                Module meta-data (added by MakeMaker)

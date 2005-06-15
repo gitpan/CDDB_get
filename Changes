@@ -77,3 +77,10 @@ Revision history for Perl extension CDDB/CDDB_get.
       (thanks to: Enache Adrian, Jolan Luff and Dan Weeks)
       pod cleanup
 
+2.25  15.06.2005
+      user:pass with proxy support - untested (thanks to Peter)
+        Please try it, I don't have such a setup.
+      Cache module: use CDDB_cache instead of CDDB_get
+        All files are saved in a local tree and can be reused from there.
+        Please try it if you like, it's not really tested.
+
