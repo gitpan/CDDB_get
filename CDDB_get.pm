@@ -35,7 +35,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.25';
+$VERSION = '2.27';
 
 use Fcntl;
 use IO::Socket;
@@ -66,7 +66,7 @@ my $CDROM_MSF=0x02;
 # default config
 
 my $CDDB_HOST = "freedb.freedb.org";
-my $CDDB_PORT = 888;
+my $CDDB_PORT = 8880;
 my $CDDB_MODE = "cddb";
 my $CD_DEVICE = "/dev/cdrom";
 
@@ -129,7 +129,7 @@ if($os eq "SunOS") {
 
 sub read_toc {
   my $device=shift;
-  my $tochdr="";
+  my $tochdr=chr(0) x 16;
 
   sysopen (CD,$device, O_RDONLY | O_NONBLOCK) or die "cannot open cdrom [$!] [$device]";
   ioctl(CD, $CDROMREADTOCHDR, $tochdr) or die "cannot read toc [$!] [$device]";
@@ -184,6 +184,7 @@ sub read_toc {
     my ($min,$sec,$frame);
     unless($os =~ /BSD/) {
       $tocentry=pack "CCC", $i,0,$CDROM_MSF;
+      $tocentry.=chr(0) x 16;
       ioctl(CD, $CDROMREADTOCENTRY, $tocentry) or die "cannot read track $i info [$!] [$device]";
       ($min,$sec,$frame)=unpack "CCCC", substr($tocentry,4,4);
     } else {

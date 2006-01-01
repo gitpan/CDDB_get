@@ -84,3 +84,12 @@ Revision history for Perl extension CDDB/CDDB_get.
         All files are saved in a local tree and can be reused from there.
         Please try it if you like, it's not really tested.
 
+2.26  22.06.2005 (unreleased)
+      added postgres/oracle/sqlite support (untested)
+      thanks to Rick for starting with a postgres version
+
+2.27  01.01.2006
+      default port is now 8880 (not 888 anymore)
+      fixes an ioctl perl problem on current redhat/fedora (thanks to Gregory K. Ruiz-Ade
+      and the redhat/fedora guys)
+

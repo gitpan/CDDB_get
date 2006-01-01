@@ -27,7 +27,7 @@ use Getopt::Std;
 use strict;
 
 my %option = ();
-getopts("oghdtsiSfDlOFc:H:CIRGP", \%option); 
+getopts("oghdtsi:SfDlOFc:H:CIRGP", \%option); 
 
 if($option{h}) {
   print "$0: gets CDDB info of a CD\n";
@@ -36,7 +36,7 @@ if($option{h}) {
   print "  -o  offline mode - just stores CD info\n";
   print "  -d  output in xmcd format\n";
   print "  -s  save in xmcd format\n";
-  print "  -i  write to mysql db\n";
+  print "  -i  db. one of: mysql, pg, oracle, sqlite\n";
   print "  -O  overwrite file or db\n";
   print "  -t  output toc\n";
   print "  -l  output lame command\n";
@@ -89,7 +89,7 @@ $CDDB_get::debug=1 if($option{D});
 if($option{H}) {
   $config{CDDB_HOST}=$option{H};
 }
-# $config{CDDB_PORT}=888; 			# set cddb port
+# $config{CDDB_PORT}=8880; 			# set cddb port
 # $config{CDDB_MODE}="cddb";			# set cddb mode: cddb or http, this is switched with -f
 # $config{CD_DEVICE}="/dev/cdrom";		# set cd device
 
@@ -123,12 +123,40 @@ my %db;
 if($option{i}) {
   require DBI;
 
-  $db{host} = "localhost:3306";
-  $db{name} = "mp3-test";
   $db{table_cds} = "cds";
   $db{table_tracks} = "tracks";
+
+  # not needed for sqlite
+  $db{host} = "localhost";
+  $db{port} = "3306";
+
+  # not needed for oracle/sqlite
+  $db{name} = "mp3-test";
+
+  # just for oracle
+  $db{sid} = "xxx";
+  $db{home} = "xxx";
+
+  # just for sqlite
+  $db{file} = "xxx";
+
+  # not needed for sqlite
   $db{user} = "root";
   $db{passwd} = "xxx";
+
+
+  if($option{i} eq "mysql") {
+    $db{connect} = sub { "dbi:mysql:database=$db{name};host=$db{host};port=$db{port}", $db{user}, $db{passwd} };
+  } elsif($option{i} eq "pg") {
+    $db{connect} = sub { "dbi:Pg:dbname=$db{dbname};host=$db{host};port=$db{port}", $db{user}, $db{passwd} };
+  } elsif($option{i} eq "oracle") {
+    $db{connect} = sub { "dbi:Oracle:host=$db{host};sid=$db{sid};port=$db{port}", $db{user}, $db{passwd} };
+    $ENV{ORACLE_HOME} = $db{home};
+  } elsif($option{i} eq "sqlite") {
+    $db{connect} = sub { "dbi:SQLite:dbname=$db{file}","","" };
+  } else {
+    die "unkown database: $option{i}";
+  }
 }
   
 if($option{o}) {
@@ -343,8 +371,7 @@ sub insert_db {
     ($cd->{artist}, $cd->{title}, $cd->{cat}, $cd->{id}, $cd->{tno});
 
   my $sql = "SELECT cddbid FROM $db->{table_cds} WHERE CDDBID = \'$cddbid\'";
-  my $dbh = DBI->connect("dbi:mysql:$db->{name}:$db->{host}",
-    $db->{user},$db->{passwd}) or die "cannot connect to db: $DBI::errstr";
+  my $dbh = DBI->connect($db->{connect}->()) or die "cannot connect to db: $DBI::errstr";
   my $sth = $dbh->prepare($sql);
   my $r = $sth->execute or die "cannot check for cd: $DBI::errstr";
   if ($r == 1) {

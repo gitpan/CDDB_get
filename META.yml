@@ -1,10 +1,10 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         CDDB_get
-version:      2.25
+version:      2.27
 version_from: CDDB_get.pm
 installdirs:  site
 requires:
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.15
+generated_by: ExtUtils::MakeMaker version 6.30
