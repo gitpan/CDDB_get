@@ -93,3 +93,5 @@ Revision history for Perl extension CDDB/CDDB_get.
       fixes an ioctl perl problem on current redhat/fedora (thanks to Gregory K. Ruiz-Ade
       and the redhat/fedora guys)
 
+2.28  06.03.2012
+      make tests work with perl 5.15.x

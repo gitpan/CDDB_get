@@ -1,8 +1,22 @@
 #!/usr/bin/env perl -w
-use strict;
-use Test;
-BEGIN { plan tests => 1 }
 
-use CDDB_get; ok(1);
-exit;
-__END__
+BEGIN {
+    if( $ENV{PERL_CORE} ) {
+        chdir 't';
+        @INC = ('../lib', 'lib');
+    }
+    else {
+        unshift @INC, 't/lib';
+    }
+}
+
+use Test::More;
+
+my $result;
+BEGIN {
+    $result = use_ok("CDDB_get");
+}
+
+ok( $result, "use_ok() ran" );
+done_testing(2);
+

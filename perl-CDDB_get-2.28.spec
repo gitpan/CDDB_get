@@ -1,5 +1,5 @@
 %define module	CDDB_get
-%define version 2.27
+%define version 2.28
 %define release 1
 Summary:	%{module} module for perl
 Name:		perl-%{module}
@@ -45,6 +45,7 @@ s=/usr/share/spec-helper/spec-helper ; [ -x $s ] && $s
 %doc Changes Copying README DATABASE
 
 %changelog
+* Tue Mar  6 19:16:36 CET 2012 Armin Obersteiner <armin(at)xos(dot)net> 2.28
 * Mon Mar 11 04:14:26 MET 2002 Armin Obersteiner <armin(at)xos(dot)net> 2.01-1
 * Sun Nov 25 2001 Peter Bieringer <pb@bieringer.de> 1.66-1
 - initial (creditds to spec file creators of perl-DateManip)

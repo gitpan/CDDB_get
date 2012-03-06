@@ -35,13 +35,14 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.27';
+$VERSION = '2.28.1';
 
 use Fcntl;
 use IO::Socket;
 use Data::Dumper qw(Dumper);
+use MIME::Base64 qw(encode_base64);
 
-#$debug=1;
+$debug=1;
 
 # setup for linux, solaris x86, solaris spark
 # you freebsd guys give me input 
