@@ -35,7 +35,7 @@ require Exporter;
   get_cddb
   get_discids
 );
-$VERSION = '2.28.1';
+$VERSION = '2.28';
 
 use Fcntl;
 use IO::Socket;
